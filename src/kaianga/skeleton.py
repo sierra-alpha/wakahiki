@@ -23,7 +23,7 @@ from kaianga import __version__
 
 __author__ = "Shaun Alexander"
 __copyright__ = "Shaun Alexander"
-__license__ = "mit"
+__license__ = "gpl3"
 
 _logger = logging.getLogger(__name__)
 
