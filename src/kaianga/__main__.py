@@ -95,6 +95,8 @@ def app(conf_file, log_level, initial, user, verbose):
     _logger.debug("reading config from %s for user %s %s mode:",
                   conf_file, user, "in initial" if initial else "not in initial")
 
+    os.chdir("/{}".format("/".join(conf_file.split("/")[:-1])))
+    _logger.debug("changed to directory %s", os.getcwd())
     user_config = toml.load(conf_file)
 
     # build default attributes
