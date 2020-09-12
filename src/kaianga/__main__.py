@@ -48,28 +48,26 @@ def expand_tilda(path, user):
         return path.replace(r"~/", r"/home/{}/".format(user), 1)
     return path
 
-def run_command(task_name, running, executed, root, prompt, cmd):
+def run_command(task_name, root, prompt, cmd):
     command = "{}".format(cmd if not root
                else "echo 'entering root' "
-               "&& su -c "
-               "'{}' -m root".format(cmd))
+               "&& sudo '{}'".format(cmd))
     shell_setting = root or prompt
     _logger.debug("running %s with prompt %s", command, shell_setting)
-    running.append(task_name)
     subprocess.run(command, shell=shell_setting)
-    running.remove(task_name)
-    executed.append(task_name)
 
 
 def process_command(task_name, task, running, executed, user):
-    # pre task work (is it a pull command?)
+    running.append(task_name)
+    _logger.debug("Processing group {}".format(task_name))
     for x in [v[0] for k,v in task.items() if k == "scripts"]:
-        _logger.debug("starting command {}".format(x))
         run_command(
             task_name, running, executed,
             x.get("root", False), x.get("prompt", True),
             expand_tilda(x.get("script", "echo 'no script'"), user)
         )
+    running.remove(task_name)
+    executed.append(task_name)
 
 
 @click.command()
@@ -146,15 +144,7 @@ def app(conf_file, log_level, initial, user, verbose):
                   and "pull-repos" in task[0].split(".")[0]):
                 # this_task = (this_task[0], {k:v for k,v in this_task[1].items()})
                 task[1]["scripts"] = [ dict( script=(
-                    'git config --global '
-                        'url."git@github.com:".insteadOf https://github.com/ '
-                    '&& git config --global url."git://".insteadOf https:// '
-
-                    '&& git clone {} {} '
-
-                    '&& git config --global '
-                        'url."https://github.com/".insteadOf git@github.com: '
-                    '&& git config --global url."https://".insteadOf git:// '
+                    'git clone {} {} '
                     .format(
                         task[1][task[0].split(".")[1]]["url"],
                         expand_tilda(
