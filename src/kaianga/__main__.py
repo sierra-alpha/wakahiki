@@ -44,26 +44,32 @@ def setup_logging(loglevel):
                         format=logformat, datefmt="%Y-%m-%d %H:%M:%S")
 
 def expand_tilda(path, user):
-    if path.startswith(r"~/"):
+    if path.startswith(r"~/") or r" ~/" in path:
         return path.replace(r"~/", r"/home/{}/".format(user), 1)
+    return path
 
-def run_command(root, prompt, cmd):
+def run_command(task_name, running, executed, root, prompt, cmd):
     command = "{}".format(cmd if not root
                else "echo 'entering root' "
                "&& su -c "
                "'{}' -m root".format(cmd))
     shell_setting = root or prompt
-    import pdb; pdb.set_trace()
+    _logger.debug("running %s with prompt %s", command, shell_setting)
+    running.append(task_name)
     subprocess.run(command, shell=shell_setting)
+    running.remove(task_name)
+    executed.append(task_name)
 
-def process_command(task_name, task, running, executed_groups):
+
+def process_command(task_name, task, running, executed, user):
     # pre task work (is it a pull command?)
-    try:
-        for x in [v[0] for k,v in task.items() if k == "script"]:
-            run_command(x["root"], True, x["script"])
-    except Exception as e:
-        log.debug(e)
-        import pdb; pdb.set_trace()
+    for x in [v[0] for k,v in task.items() if k == "scripts"]:
+        _logger.debug("starting command {}".format(x))
+        run_command(
+            task_name, running, executed,
+            x.get("root", False), x.get("prompt", True),
+            expand_tilda(x.get("script", "echo 'no script'"), user)
+        )
 
 
 @click.command()
@@ -107,7 +113,7 @@ def app(conf_file, log_level, initial, user, verbose):
 
     # ordered_config = prioritise(user_config)
     # figure out order
-    task_groups ={
+    task_groups = list( {
         "{}.{}".format(x,z):{
             z:y[z],
             "priority": y.get("priority", float("inf")),
@@ -116,59 +122,61 @@ def app(conf_file, log_level, initial, user, verbose):
         for x,y in user_config.items()
         for z in y.keys()
         if z.lower() not in "priority pre-req".split()
-    }
+    }.items() )
 
-    sorted_tasks = sorted(list(task_groups.items()),
-                          key=lambda x: x[1]["priority"]
-    )
+    # sorted_tasks = sorted(list(task_groups.items()),
+    #                       key=lambda x: x[1]["priority"]
+    # )
     executed_groups = [None]
     running_tasks = []
 
-    while len(sorted_tasks) > 0:
-        current_prioirity = sorted_tasks[0][1]["priority"]
+    while task_groups:
         tasks_started = False
+        _logger.debug("sorted tasks: {}".format(
+            [x[0]for x in task_groups]))
+        _logger.debug("running tasks: {}".format(running_tasks))
+        _logger.debug("executed tasks: {}" .format(executed_groups))
+        import pdb; pdb.set_trace()
 
-        for i in range(len(sorted_tasks)-1):
-            this_task = sorted_tasks[i]
+        for task in task_groups:
 
             # If we're a pull repo task set up our pull script
             # if it hasn't been setup yet
-            if ("script" not in this_task[1]
-                   and "pull-repos" in this_task[0].split(".")[0]):
-                this_task = (this_task[0], {k:v for k,v in this_task[1].items()})
-                this_task[1]["script"] = (
+            if ("script" not in task[1]
+                  and "pull-repos" in task[0].split(".")[0]):
+                # this_task = (this_task[0], {k:v for k,v in this_task[1].items()})
+                task[1]["scripts"] = [ dict( script=(
                     'git config --global '
                         'url."git@github.com:".insteadOf https://github.com/ '
                     '&& git config --global url."git://".insteadOf https:// '
 
-                    '&& git clone {} {}'
+                    '&& git clone {} {} '
 
                     '&& git config --global '
                         'url."https://github.com/".insteadOf git@github.com: '
                     '&& git config --global url."https://".insteadOf git:// '
                     .format(
-                        this_task[1][this_task[0].split(".")[1]]["url"],
+                        task[1][task[0].split(".")[1]]["url"],
                         expand_tilda(
-                            this_task[1][this_task[0].split(".")[1]]["local"],
+                            task[1][task[0].split(".")[1]]["local"],
                             user)
                     )
-                )
-                import pdb; pdb.set_trace()
+                ))]
 
-            task_priority = this_task[1]["priority"]
-            task_pre_req = this_task[1]["pre-req"]
-            if task_priority <= current_prioirity and task_pre_req in executed_groups:
+            task_pre_req = task[1]["pre-req"]
+            if task_pre_req in executed_groups:
 
                 # Marks when done and blocks if need be
-                process_command(*sorted_tasks.pop(0), running_tasks, executed_groups)
+
+                process_command(*task, running_tasks, executed_groups, user)
+                task_groups.remove(task)
                 tasks_started = True
 
         if not tasks_started:
             _logger.debug("waiting on tasks %s, completed %s",
                           ", ".join(running_tasks), ", ".join(executed_groups[1:])
-                          if executed_groups > 1 else "None")
-            sleep(2)
-
+                          if len(executed_groups) > 1 else "None")
+            time.sleep(2)
 
     # run process, if it's blocking then wait till end
 
