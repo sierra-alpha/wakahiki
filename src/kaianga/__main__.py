@@ -48,7 +48,7 @@ def expand_tilda(path, user):
         return path.replace(r"~/", r"/home/{}/".format(user), 1)
     return path
 
-def run_command(task_name, root, prompt, cmd):
+def run_command(root, prompt, cmd):
     command = "{}".format(cmd if not root
                else "echo 'entering root' "
                "&& sudo '{}'".format(cmd))
@@ -62,7 +62,6 @@ def process_command(task_name, task, running, executed, user):
     _logger.debug("Processing group {}".format(task_name))
     for x in [v[0] for k,v in task.items() if k == "scripts"]:
         run_command(
-            task_name, running, executed,
             x.get("root", False), x.get("prompt", True),
             expand_tilda(x.get("script", "echo 'no script'"), user)
         )
