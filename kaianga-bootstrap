@@ -1,0 +1,8 @@
+#!/bin/bash
+
+su -m root -c "apt-get update \
+&& apt-get install python3 python3-pip git "
+
+# Pip install kaianga eventually
+su -m root -c "pip3 install pipenv pyscaffold"
+
