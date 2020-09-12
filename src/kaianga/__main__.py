@@ -43,6 +43,10 @@ def setup_logging(loglevel):
     logging.basicConfig(level=getattr(logging, loglevel.upper()), stream=sys.stdout,
                         format=logformat, datefmt="%Y-%m-%d %H:%M:%S")
 
+def expand_tilda(path, user):
+    if path.startswith(r"~/"):
+        return path.replace(r"~/", r"/home/{}/".format(user), 1)
+
 def run_command(root, prompt, cmd):
     command = "{}".format(cmd if not root
                else "echo 'entering root' "
@@ -55,9 +59,10 @@ def run_command(root, prompt, cmd):
 def process_command(task_name, task, running, executed_groups):
     # pre task work (is it a pull command?)
     try:
-        for x in [v[0] for k,v in task.items() if k not in "priority pre-req".split()]:
-            run_command(x["root"], True, x["script-path"])
-    except:
+        for x in [v[0] for k,v in task.items() if k == "script"]:
+            run_command(x["root"], True, x["script"])
+    except Exception as e:
+        log.debug(e)
         import pdb; pdb.set_trace()
 
 
@@ -90,8 +95,7 @@ def app(conf_file, log_level, initial, user, verbose):
         log_level = "info"
     setup_logging(log_level)
 
-    if conf_file.startswith(r"~/"):
-        conf_file = conf_file.replace(r"~/", r"/home/{}/".format(user), 1)
+    conf_file = expand_tilda(conf_file, user)
     _logger.debug("reading config from %s for user %s %s mode:",
                   conf_file, user, "in initial" if initial else "not in initial")
 
@@ -123,9 +127,36 @@ def app(conf_file, log_level, initial, user, verbose):
     while len(sorted_tasks) > 0:
         current_prioirity = sorted_tasks[0][1]["priority"]
         tasks_started = False
+
         for i in range(len(sorted_tasks)-1):
-            task_priority = sorted_tasks[i][1]["priority"]
-            task_pre_req = sorted_tasks[i][1]["pre-req"]
+            this_task = sorted_tasks[i]
+
+            # If we're a pull repo task set up our pull script
+            # if it hasn't been setup yet
+            if ("script" not in this_task[1]
+                   and "pull-repos" in this_task[0].split(".")[0]):
+                this_task = (this_task[0], {k:v for k,v in this_task[1].items()})
+                this_task[1]["script"] = (
+                    'git config --global '
+                        'url."git@github.com:".insteadOf https://github.com/ '
+                    '&& git config --global url."git://".insteadOf https:// '
+
+                    '&& git clone {} {}'
+
+                    '&& git config --global '
+                        'url."https://github.com/".insteadOf git@github.com: '
+                    '&& git config --global url."https://".insteadOf git:// '
+                    .format(
+                        this_task[1][this_task[0].split(".")[1]]["url"],
+                        expand_tilda(
+                            this_task[1][this_task[0].split(".")[1]]["local"],
+                            user)
+                    )
+                )
+                import pdb; pdb.set_trace()
+
+            task_priority = this_task[1]["priority"]
+            task_pre_req = this_task[1]["pre-req"]
             if task_priority <= current_prioirity and task_pre_req in executed_groups:
 
                 # Marks when done and blocks if need be
