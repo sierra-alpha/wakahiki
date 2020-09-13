@@ -51,13 +51,14 @@ def expand_tilda(path, user):
 def run_command(prompt, cmd):
     shell_setting = prompt
     _logger.debug("running %s with prompt %s", cmd, shell_setting)
+    
     subprocess.run(cmd, shell=shell_setting)
 
 
 def process_command(task_name, task, running, executed, user):
     running.append(task_name)
     _logger.debug("Processing group {}".format(task_name))
-    for x in [v[0] for k,v in task.items() if k == "scripts"]:
+    for x in task["scripts"]:
         run_command(
             x.get("prompt", True),
             expand_tilda(x.get("script", "echo 'no script'"), user)
@@ -137,7 +138,6 @@ def app(conf_file, log_level, initial, user, verbose):
             # if it hasn't been setup yet
             if ("script" not in task[1]
                   and "pull-repos" in task[0].split(".")[0]):
-                # this_task = (this_task[0], {k:v for k,v in this_task[1].items()})
                 task[1]["scripts"] = [ dict( script=(
                     'git clone {} {} '
                     .format(
@@ -152,7 +152,7 @@ def app(conf_file, log_level, initial, user, verbose):
             if task_pre_req in executed_groups:
 
                 # Marks when done and blocks if need be
-
+                os.chdir("/{}".format("/".join(conf_file.split("/")[:-1])))
                 process_command(*task, running_tasks, executed_groups, user)
                 task_groups.remove(task)
                 tasks_started = True
