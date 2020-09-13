@@ -130,7 +130,6 @@ def app(conf_file, log_level, initial, user, verbose):
             [x[0]for x in task_groups]))
         _logger.debug("running tasks: {}".format(running_tasks))
         _logger.debug("executed tasks: {}" .format(executed_groups))
-        import pdb; pdb.set_trace()
 
         for task in task_groups:
 
@@ -165,8 +164,6 @@ def app(conf_file, log_level, initial, user, verbose):
             time.sleep(2)
 
     # run process, if it's blocking then wait till end
-
-    import pdb; pdb.set_trace()
 
     _logger.info("script ends here")
 
