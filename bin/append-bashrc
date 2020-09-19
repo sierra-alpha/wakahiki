@@ -3,5 +3,5 @@
 # custom .bashrc call to end of bashrc if it doesn't exist
 # merge my add-tobashrc script into system .bashrc
 touch ~/.temp
-git merge-file --union ~/.bashrc ~/.temp bash/.add-to-bashrc
+git merge-file --union "$1" ~/.temp "$2"
 rm ~/.temp
