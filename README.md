@@ -1,9 +1,9 @@
 This is the configuration file to bootstrap a system the way i like it.
-
+Commands expect to be in a `bash` shell, default is `sh` enter bash then,
 Copy and paste the following into a containers shell. the &&'s allow for commands requiring input.
 
 ```bash
-bash -c 'sudo apt-get update && sudo apt-get install -y python3 python3-pip git \
+sudo apt-get update && sudo apt-get install -y python3 python3-pip git \
 && sudo pip3 install pipenv pyscaffold \
 && git clone https://github.com/sierra-alpha/kaianga-conf.git \
 && mkdir kaianga \
@@ -13,5 +13,5 @@ bash -c 'sudo apt-get update && sudo apt-get install -y python3 python3-pip git 
 && git clone https://github.com/sierra-alpha/kaianga.git \
 && cd kaianga/ \
 && python setup.py develop \
-&& python src/kaianga -c ~/kaianga-conf/kaianga.conf -i -l debug -u shaun'
+&& python src/kaianga -c ~/kaianga-conf/kaianga.conf -i -l debug -u shaun
 ```
