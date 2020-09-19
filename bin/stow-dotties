@@ -1,4 +1,4 @@
-#!bin/bash
+#!/bin/bash
 
 # Use Commandline Args for dotfiles repo, comment outs allow overwiriting system files
 cd ~/dotfiles
