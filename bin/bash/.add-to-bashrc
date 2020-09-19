@@ -3,4 +3,4 @@
 
 if [ -f ~/.my_bashrc ]; then
     . ~/.my_bashrc
-fi
+fi # This is a new fi, don't confuse it with a new one.
