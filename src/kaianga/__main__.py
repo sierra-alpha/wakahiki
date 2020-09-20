@@ -23,7 +23,7 @@ from pathlib import Path
 import sys
 import subprocess
 import time
-from threading import Thread, Semaphore
+from threading import Event, Semaphore, Thread
 import toml
 
 from kaianga import __version__
@@ -54,6 +54,7 @@ def expand_tilda(path, user):
 
 
 i_o_sem = Semaphore()
+task_change = event()
 
 
 def run_command(prompt, cmd):
@@ -88,7 +89,6 @@ def run_command(prompt, cmd):
         i_o_sem.release()
 
 
-
 def process_command(task_name, task, running, executed, user):
     running.append(task_name)
     _logger.debug("Processing group {}".format(task_name))
@@ -99,6 +99,7 @@ def process_command(task_name, task, running, executed, user):
         )
     running.remove(task_name)
     executed.append(task_name)
+    task_change.set()
 
 
 @click.command()
@@ -173,12 +174,11 @@ def app(conf_file, log_level, initial, user, verbose):
                   and "pull-repos" in task[0].split(".")[0]):
                 task[1]["scripts"] = [ dict( script=(
                     ["git", "clone",
-                        task[1][task[0].split(".")[1]]["url"],
-                        Path(
-                            task[1][task[0].split(".")[1]]["local"]
-                        ).expanduser().absolute()
-                     ])
-                )]
+                     task[1][task[0].split(".")[1]]["url"],
+                     str( Path(
+                         task[1][task[0].split(".")[1]]["local"]
+                     ).expanduser().absolute()
+                     )]))]
 
             task_pre_reqs = task[1]["pre-reqs"]
             if set(task_pre_reqs).issubset(executed_groups):
@@ -192,10 +192,9 @@ def app(conf_file, log_level, initial, user, verbose):
 
         if not tasks_started:
             # Wait for prompt lock here too
-            _logger.debug("waiting on pre-reqs to finish")
-
-            # could wait on semaphore of tasks rather than busy waiting
-            time.sleep(2)
+            _logger.info("waiting on pre-reqs to finish")
+            _logger.debug("running tasks: {}".format(running_tasks))
+            task_change.wait()
 
 
     _logger.info("script ends here")
