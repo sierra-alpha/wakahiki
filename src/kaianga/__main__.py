@@ -23,6 +23,7 @@ from pathlib import Path
 import sys
 import subprocess
 import time
+from threading import Thread
 import toml
 
 from kaianga import __version__
@@ -151,7 +152,9 @@ def app(conf_file, log_level, initial, user, verbose):
             if set(task_pre_reqs).issubset(executed_groups):
 
                 os.chdir(str(conf_file.parent))
-                process_command(*task, running_tasks, executed_groups, user)
+                Thread(target=process_command, args=(
+                    *task, running_tasks, executed_groups, user)).start()
+                process_command
                 task_groups.remove(task)
                 tasks_started = True
 
