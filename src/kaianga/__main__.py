@@ -49,7 +49,7 @@ def expand_tilda(path, user):
     for x in path:
         if x.startswith(r"~/"):
             x.replace(r"~/", r"/home/{}/".format(user), 1)
-    return paths
+    return path
 
 def run_command(prompt, cmd):
     # add inputs
