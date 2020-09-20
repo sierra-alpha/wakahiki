@@ -23,7 +23,7 @@ from pathlib import Path
 import sys
 import subprocess
 import time
-from threading import Thread
+from threading import Thread, Semaphore
 import toml
 
 from kaianga import __version__
@@ -45,26 +45,48 @@ def setup_logging(loglevel):
     logging.basicConfig(level=getattr(logging, loglevel.upper()), stream=sys.stdout,
                         format=logformat, datefmt="%Y-%m-%d %H:%M:%S")
 
+
 def expand_tilda(path, user):
     for x in path:
         if x.startswith(r"~/"):
             x.replace(r"~/", r"/home/{}/".format(user), 1)
     return path
 
+
+i_o_sem = Semaphore()
+
+
 def run_command(prompt, cmd):
     # add inputs
     shell_setting = prompt
     _logger.debug("running %s with prompt %s", cmd, shell_setting)
-    return_code = stdout = stderr = None
     if prompt:
         # Get prompt lock
-        return_code = subprocess.run(cmd)
+        i_o_sem.aquire()
+        cmd, stderr = subprocess.run(cmd)
+        i_o_sem.release()
     else:
         stdout, stderr = subprocess.check_ouptut(cmd)
-        _logger.info("{}".format(stdout))
+        i_o_sem.aquire()
+        print("{}".format(stdout))
+        i_o_sem.release()
 
-    if stderr or return_code:
-        _logger.warning("error code {}". format(stderr or return_code))
+    if stderr:
+        _logger.warning("error code {}". format(stderr))
+
+        i_o_sem.aquire()
+        print("{}".format(stderr))
+        carry_on = input("There has been an error in {!r},"
+                         " press q to quit or any key other"
+                         " key to continue"format(cmd))
+
+        if carry_on.lower == q:
+            raise KeyboardInterrupt
+        i_o_sem.release()
+
+    elif not prompt:
+        _logger.debug()
+
 
 
 def process_command(task_name, task, running, executed, user):
@@ -170,11 +192,7 @@ def app(conf_file, log_level, initial, user, verbose):
 
         if not tasks_started:
             # Wait for prompt lock here too
-            _logger.debug("waiting on tasks: {!r}".format(running_tasks))
-            _logger.debug("completed tasks: {!r}".format(
-                repr(executed_groups[1:])
-                    if len(executed_groups) > 1 else None)
-            )
+            _logger.debug("waiting on pre-reqs to finish")
 
             # could wait on semaphore of tasks rather than busy waiting
             time.sleep(2)
