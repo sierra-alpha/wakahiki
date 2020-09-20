@@ -46,9 +46,10 @@ def setup_logging(loglevel):
                         format=logformat, datefmt="%Y-%m-%d %H:%M:%S")
 
 def expand_tilda(path, user):
-    if path.startswith(r"~/") or r" ~/" in path:
-        return path.replace(r"~/", r"/home/{}/".format(user), 1)
-    return path
+    for x in path:
+        if x.startswith(r"~/"):
+            x.replace(r"~/", r"/home/{}/".format(user), 1)
+    return paths
 
 def run_command(prompt, cmd):
     # add inputs
@@ -72,7 +73,7 @@ def process_command(task_name, task, running, executed, user):
     for x in task["scripts"]:
         run_command(
             x.get("prompt", True),
-            expand_tilda(x.get("script", "echo 'no script'"), user)
+            expand_tilda(x.get("script", ["echo", "'no script'"]), user)
         )
     running.remove(task_name)
     executed.append(task_name)
@@ -149,14 +150,13 @@ def app(conf_file, log_level, initial, user, verbose):
             if ("script" not in task[1]
                   and "pull-repos" in task[0].split(".")[0]):
                 task[1]["scripts"] = [ dict( script=(
-                    'git clone {} {} '
-                    .format(
+                    ["git", "clone",
                         task[1][task[0].split(".")[1]]["url"],
-                        expand_tilda(
-                            task[1][task[0].split(".")[1]]["local"],
-                            user)
-                    )
-                ))]
+                        Path(
+                            task[1][task[0].split(".")[1]]["local"]
+                        ).expanduser().absolute()
+                     ])
+                )]
 
             task_pre_reqs = task[1]["pre-reqs"]
             if set(task_pre_reqs).issubset(executed_groups):
@@ -169,9 +169,12 @@ def app(conf_file, log_level, initial, user, verbose):
                 tasks_started = True
 
         if not tasks_started:
-            _logger.debug("waiting on tasks %s, completed %s",
-                          ", ".join(running_tasks), ", ".join(executed_groups[1:])
-                          if len(executed_groups) > 1 else "None")
+            # Wait for prompt lock here too, could wait on semaphore of tasks
+            _logger.debug("waiting on tasks {r}, completed {r}".format(
+                ", ".join(running_tasks),
+                ", ".join(executed_groups[1:]
+                          if len(executed_groups) > 1 else "None"))
+            )
             time.sleep(2)
 
 
