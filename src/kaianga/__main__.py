@@ -48,7 +48,8 @@ def setup_logging(loglevel):
 
 def expand_tilda(path, user):
     return [x.replace(r"~/", r"/home/{}/".format(user), 1)
-            if x.startswith(r"~/") else x for x in path]
+            if x.startswith(r"~/") or r" ~/" in x
+            else x for x in path]
 
 
 i_o_sem = Semaphore()
