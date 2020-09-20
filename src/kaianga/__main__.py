@@ -54,7 +54,7 @@ def expand_tilda(path, user):
 
 
 i_o_sem = Semaphore()
-task_change = event()
+task_change = Event()
 
 
 def run_command(prompt, cmd):
