@@ -78,7 +78,7 @@ def run_command(prompt, cmd):
         print("{}".format(stderr))
         carry_on = input("There has been an error in {!r},"
                          " press q to quit or any key other"
-                         " key to continue"format(cmd))
+                         " key to continue".format(cmd))
 
         if carry_on.lower == q:
             raise KeyboardInterrupt
