@@ -170,10 +170,10 @@ def app(conf_file, log_level, initial, user, verbose):
 
         if not tasks_started:
             # Wait for prompt lock here too
-            _logger.debug("waiting on tasks: {r}".format(running_tasks))
-            _logger.debug("completed tasks: {}".format(
+            _logger.debug("waiting on tasks: {!r}".format(running_tasks))
+            _logger.debug("completed tasks: {!r}".format(
                 repr(executed_groups[1:])
-                    if len(executed_groups) > 1 else "None")
+                    if len(executed_groups) > 1 else None)
             )
 
             # could wait on semaphore of tasks rather than busy waiting
