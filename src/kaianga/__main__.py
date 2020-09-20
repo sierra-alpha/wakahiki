@@ -62,19 +62,16 @@ def run_command(prompt, cmd):
     _logger.debug("running %s with prompt %s", cmd, shell_setting)
     if prompt:
         # Get prompt lock
-        i_o_sem.aquire()
+        i_o_sem.acquire()
         cmd, stderr = subprocess.run(cmd)
         i_o_sem.release()
     else:
         stdout, stderr = subprocess.check_ouptut(cmd)
-        i_o_sem.aquire()
-        print("{}".format(stdout))
-        i_o_sem.release()
 
     if stderr:
         _logger.warning("error code {}". format(stderr))
 
-        i_o_sem.aquire()
+        i_o_sem.acquire()
         print("{}".format(stderr))
         carry_on = input("There has been an error in {!r},"
                          " press q to quit or any key other"
@@ -85,7 +82,9 @@ def run_command(prompt, cmd):
         i_o_sem.release()
 
     elif not prompt:
-        _logger.debug()
+        i_o_sem.acquire()
+        print("{}".format(stdout))
+        i_o_sem.release()
 
 
 
