@@ -19,6 +19,7 @@ import click
 import logging
 import numbers
 import os
+from pathlib import Path
 import sys
 import subprocess
 import time
@@ -51,7 +52,6 @@ def expand_tilda(path, user):
 def run_command(prompt, cmd):
     shell_setting = prompt
     _logger.debug("running %s with prompt %s", cmd, shell_setting)
-    
     subprocess.run(cmd, shell=shell_setting)
 
 
@@ -96,11 +96,11 @@ def app(conf_file, log_level, initial, user, verbose):
         log_level = "info"
     setup_logging(log_level)
 
-    conf_file = expand_tilda(conf_file, user)
-    _logger.debug("reading config from %s for user %s %s mode:",
-                  conf_file, user, "in initial" if initial else "not in initial")
+    conf_file = Path(conf_file).expanduser().absolute()
+    _logger.debug("reading config from {}, for user {}, {} mode:".format(
+        conf_file, user, "in initial" if initial else "not in initial"))
 
-    os.chdir("/{}".format("/".join(conf_file.split("/")[:-1])))
+    os.chdir(str(conf_file.parent))
     _logger.debug("changed to directory %s", os.getcwd())
     user_config = toml.load(conf_file)
 
@@ -111,12 +111,11 @@ def app(conf_file, log_level, initial, user, verbose):
     task_groups = list( {
         "{}.{}".format(x,z):{
             z:y[z],
-            "priority": y.get("priority", float("inf")),
-            "pre-req": y.get("pre-req", None),
+            "pre-reqs": y.get("pre-reqs", [None]),
         }
         for x,y in user_config.items()
         for z in y.keys()
-        if z.lower() not in "priority pre-req".split()
+        if z.lower() not in ["pre-reqs"]
     }.items() )
 
     # sorted_tasks = sorted(list(task_groups.items()),
@@ -127,7 +126,7 @@ def app(conf_file, log_level, initial, user, verbose):
 
     while task_groups:
         tasks_started = False
-        _logger.debug("sorted tasks: {}".format(
+        _logger.debug("to do tasks: {}".format(
             [x[0]for x in task_groups]))
         _logger.debug("running tasks: {}".format(running_tasks))
         _logger.debug("executed tasks: {}" .format(executed_groups))
@@ -148,11 +147,10 @@ def app(conf_file, log_level, initial, user, verbose):
                     )
                 ))]
 
-            task_pre_req = task[1]["pre-req"]
-            if task_pre_req in executed_groups:
+            task_pre_reqs = task[1]["pre-reqs"]
+            if set(task_pre_reqs).issubset(executed_groups):
 
-                # Marks when done and blocks if need be
-                os.chdir("/{}".format("/".join(conf_file.split("/")[:-1])))
+                os.chdir(str(conf_file.parent))
                 process_command(*task, running_tasks, executed_groups, user)
                 task_groups.remove(task)
                 tasks_started = True
@@ -163,7 +161,6 @@ def app(conf_file, log_level, initial, user, verbose):
                           if len(executed_groups) > 1 else "None")
             time.sleep(2)
 
-    # run process, if it's blocking then wait till end
 
     _logger.info("script ends here")
 
