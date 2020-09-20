@@ -191,6 +191,7 @@ def app(conf_file, log_level, initial, user, verbose):
                 tasks_started = True
 
         if not tasks_started:
+            task_change.clear()
             # Wait for prompt lock here too
             _logger.info("waiting on pre-reqs to finish")
             _logger.debug("running tasks: {}".format(running_tasks))
