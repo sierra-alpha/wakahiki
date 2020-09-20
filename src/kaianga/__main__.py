@@ -63,8 +63,9 @@ def run_command(prompt, cmd):
     if prompt:
         # Get prompt lock
         i_o_sem.acquire()
-        cmd, stderr = subprocess.run(cmd)
+        output = subprocess.run(cmd, errors=True)
         i_o_sem.release()
+        stderr = output.stderr
     else:
         stdout, stderr = subprocess.check_ouptut(cmd)
 
