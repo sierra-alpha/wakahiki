@@ -51,9 +51,19 @@ def expand_tilda(path, user):
     return path
 
 def run_command(prompt, cmd):
+    # add inputs
     shell_setting = prompt
     _logger.debug("running %s with prompt %s", cmd, shell_setting)
-    subprocess.run(cmd, shell=shell_setting)
+    return_code = stdout = stderr = None
+    if prompt:
+        # Get prompt lock
+        return_code = subprocess.run(cmd)
+    else:
+        stdout, stderr = subprocess.check_ouptut(cmd)
+        _logger.info("{}".format(stdout))
+
+    if stderr or return_code:
+        _logger.warning("error code {}". format(stderr or return_code))
 
 
 def process_command(task_name, task, running, executed, user):
