@@ -23,8 +23,10 @@ from pathlib import Path
 import sys
 import subprocess
 import time
-from threading import Event, Semaphore, Thread
+import _thread
+import threading
 import toml
+import traceback
 
 from kaianga import __version__
 
@@ -52,8 +54,44 @@ def expand_tilda(path, user):
             else x for x in path]
 
 
-i_o_sem = Semaphore()
-task_change = Event()
+i_o_sem = threading.Semaphore()
+task_change = threading.Event()
+exit_call = threading.Event()
+
+
+def check_exit_get_sem():
+    i_o_sem.acquire()
+    if exit_call.is_set():
+        return
+    else:
+        _logger.debug(
+            "exit flag set, exiting thread - {!r}".format(threading.current_thread()))
+        i_o_sem.release()
+        sys.exit()
+
+
+def carry_on_q(err, cmd):
+        check_exit_get_sem()
+        _logger.warning("error code {}". format(err))
+        carry_on = input(
+            "There has been an error in {!r}, press q to quit or any other"
+            " key to try and continue: ".format(cmd))
+
+        if carry_on.lower() == "q":
+            if threading.current_thread() != threading.main_thread():
+                _logger.debug(
+                    "exiting thread - {!r}"
+                    .format(threading.current_thread()))
+                _logger.info("exiting to __main__")
+                _thread.interrupt_main()
+                exit_call.clear()
+                i_o_sem.release()
+                sys.exit()
+            else:
+                exit_call.clear()
+                i_o_sem.release()
+                raise KeyboardInterrupt
+        i_o_sem.release()
 
 
 def run_command(prompt, cmd):
@@ -62,28 +100,26 @@ def run_command(prompt, cmd):
     _logger.debug("running %s with prompt %s", cmd, shell_setting)
     if prompt:
         # Get prompt lock
-        i_o_sem.acquire()
-        output = subprocess.run(cmd, errors=True)
-        i_o_sem.release()
-        stderr = output.stderr
+        check_exit_get_sem()
+        try:
+            output = subprocess.run(cmd, errors=True)
+            stderr = output.stderr or output.returncode
+            i_o_sem.release()
+        except FileNotFoundError:
+            stderr = traceback.format_exc()
+            i_o_sem.release()
+
     else:
-        stdout, stderr = subprocess.check_ouptut(cmd)
+        try:
+            stdout, stderr = subprocess.check_ouptut(cmd)
+        except FileNotFoundError:
+            stderr = traceback.format_exc()
 
     if stderr:
-        _logger.warning("error code {}". format(stderr))
-
-        i_o_sem.acquire()
-        print("{}".format(stderr))
-        carry_on = input("There has been an error in {!r},"
-                         " press q to quit or any key other"
-                         " key to continue".format(cmd))
-
-        if carry_on.lower == q:
-            raise KeyboardInterrupt
-        i_o_sem.release()
+            carry_on_q(stderr, cmd)
 
     elif not prompt:
-        i_o_sem.acquire()
+        check_exit_get_sem()
         print("{}".format(stdout))
         i_o_sem.release()
 
@@ -157,48 +193,72 @@ def app(conf_file, log_level, initial, user, verbose):
     # )
     executed_groups = [None]
     running_tasks = []
+    waits = 0
+    exit_call.set()
 
-    while task_groups:
-        tasks_started = False
-        _logger.debug("to do tasks: {}".format(
-            [x[0]for x in task_groups]))
-        _logger.debug("running tasks: {}".format(running_tasks))
-        _logger.debug("executed tasks: {}" .format(executed_groups))
+    try:
+       while task_groups:
+           tasks_started = False
+           i_o_sem.acquire()
+           _logger.debug("to do tasks: {}".format(
+               [x[0]for x in task_groups]))
+           _logger.debug("running tasks: {}".format(running_tasks))
+           _logger.debug("executed tasks: {}" .format(executed_groups))
+           i_o_sem.release()
 
-        for task in task_groups:
+           for task in task_groups:
 
-            # If we're a pull repo task set up our pull script
-            # if it hasn't been setup yet
-            if ("script" not in task[1]
-                  and "pull-repos" in task[0].split(".")[0]):
-                task[1]["scripts"] = [ dict( script=(
-                    ["git", "clone",
-                     task[1][task[0].split(".")[1]]["url"],
-                     str( Path(
-                         task[1][task[0].split(".")[1]]["local"]
-                     ).expanduser().absolute()
-                     )]))]
+               # If we're a pull repo task set up our pull script
+               # if it hasn't been setup yet
+               if ("script" not in task[1]
+                     and "pull-repos" in task[0].split(".")[0]):
+                   task[1]["scripts"] = [ dict( script=(
+                       ["git", "clone",
+                        task[1][task[0].split(".")[1]]["url"],
+                        str( Path(
+                            task[1][task[0].split(".")[1]]["local"]
+                        ).expanduser().absolute()
+                        )]))]
 
-            task_pre_reqs = task[1]["pre-reqs"]
-            if set(task_pre_reqs).issubset(executed_groups):
+               task_pre_reqs = task[1]["pre-reqs"]
+               if set(task_pre_reqs).issubset(executed_groups):
 
-                os.chdir(str(conf_file.parent))
-                Thread(target=process_command, args=(
-                    *task, running_tasks, executed_groups, user)).start()
-                process_command
-                task_groups.remove(task)
-                tasks_started = True
+                   os.chdir(str(conf_file.parent))
+                   threading.Thread(target=process_command, name=task[0], args=(
+                       *task, running_tasks, executed_groups, user)).start()
+                   task_groups.remove(task)
+                   tasks_started = True
 
-        if not tasks_started:
-            task_change.clear()
-            # Wait for prompt lock here too
-            _logger.info("waiting on pre-reqs to finish")
-            _logger.debug("running tasks: {}".format(running_tasks))
-            task_change.wait()
+           if not tasks_started:
+               task_change.clear()
+               i_o_sem.acquire()
+               _logger.info("waiting on pre-reqs to finish")
+               _logger.debug("running tasks: {}".format(running_tasks))
+               i_o_sem.release()
 
+               if waits == 3:
+                   i_o_sem.acquire()
+                   carry_on = input(
+                       "It seems like pre-reqs have failed, do you want to quit?"
+                       " q to quit, any other key to continue: ")
+                   if carry_on.lower() == "q":
+                       exit_call.clear()
+                       i_o_sem.release()
+                       raise KeyboardInterrupt
+                   i_o_sem.release()
+                   waits = 0
+
+               if not task_change.wait(timeout=10):
+                   waits += 1
+
+    except KeyboardInterrupt:
+        i_o_sem.acquire()
+        _logger.debug("in __main__ cleaning up other threads")
+        exit_call.clear()
+        i_o_sem.release()
+        raise KeyboardInterrupt
 
     _logger.info("script ends here")
-
 
 if __name__ == "__main__":
     app()
