@@ -253,6 +253,7 @@ def app(conf_file, log_level, initial, user, verbose):
                if not task_change.wait(timeout=10):
                    waits += 1
 
+       _logger.debug("Collecting any still running threads")
        for t in thread_collect:
            t.join()
 
@@ -263,7 +264,7 @@ def app(conf_file, log_level, initial, user, verbose):
         i_o_sem.release()
         raise KeyboardInterrupt
 
-    _logger.info("script ends here")
+    _logger.info("Kaianga completed successfully (doesn't mean all jobs were a success)")
 
 if __name__ == "__main__":
     app()
