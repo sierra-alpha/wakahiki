@@ -1,10 +1,8 @@
 #!/bin/bash
 
 # Needs global git config to be configured with email first
-# printf "\n\n\n" | ssh-keygen -t rsa -b 4096 -C "$(git config user.email)" \
-#        && eval "$(ssh-agent -s)" \
-#        && ssh-add ~/.ssh/id_rsa
-
-ssh-keygen -t rsa -b 4096 -C "$(git config user.email)" \
-    && eval "$(ssh-agent -s)" \
-    && ssh-add ~/.ssh/id_rsa
+if [ ! -f ~/.ssh/id_rsa ]; then
+    ssh-keygen -t rsa -b 4096 -q -f "$HOME/.ssh/id_rsa" -C "$(git config user.email)"
+    eval "$(ssh-agent -s)"
+    ssh-add ~/.ssh/id_rsa
+fi
