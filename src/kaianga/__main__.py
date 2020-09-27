@@ -207,6 +207,7 @@ def app(conf_file, log_level, initial, user, verbose):
     running_tasks = []
     waits = 0
     exit_call.set()
+    thread_collect = []
 
     try:
        while task_groups:
@@ -224,8 +225,11 @@ def app(conf_file, log_level, initial, user, verbose):
                if set(task_pre_reqs).issubset(executed_groups):
 
                    os.chdir(str(conf_file.parent))
-                   threading.Thread(target=process_command, name=task[0], args=(
-                       *task, running_tasks, executed_groups, user)).start()
+                   this_thread = threading.Thread(
+                       target=process_command, name=task[0], args=(
+                       *task, running_tasks, executed_groups, user))
+                   thread_collect.append(this_thread)
+                   this_thread.start()
                    task_groups.remove(task)
                    tasks_started = True
 
@@ -248,6 +252,9 @@ def app(conf_file, log_level, initial, user, verbose):
 
                if not task_change.wait(timeout=10):
                    waits += 1
+
+       for t in thread_collect:
+           t.join()
 
     except KeyboardInterrupt:
         i_o_sem.acquire()
