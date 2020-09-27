@@ -43,7 +43,7 @@ def setup_logging(loglevel):
     Args:
       loglevel (int): minimum loglevel for emitting messages
     """
-    logformat = "[%(asctime)s] %(levelname)s:%(name)s:%(message)s"
+    logformat = "[%(asctime)s] %(levelname)s:%(name)s:%(threadName)s:\n %(message)s"
     logging.basicConfig(level=getattr(logging, loglevel.upper()), stream=sys.stdout,
                         format=logformat, datefmt="%Y-%m-%d %H:%M:%S")
 
@@ -64,69 +64,81 @@ def check_exit_get_sem():
     if exit_call.is_set():
         return
     else:
-        _logger.debug(
-            "exit flag set, exiting thread - {!r}".format(threading.current_thread()))
+        _logger.debug("exit flag set, exiting thread")
         i_o_sem.release()
         sys.exit()
 
 
 def carry_on_q(err, cmd):
-        check_exit_get_sem()
-        _logger.warning("error code {}". format(err))
-        carry_on = input(
-            "There has been an error in {!r}, press q to quit or any other"
-            " key to try and continue: ".format(cmd))
+    """Need to get IO sem before calling here"""
 
-        if carry_on.lower() == "q":
-            if threading.current_thread() != threading.main_thread():
-                _logger.debug(
-                    "exiting thread - {!r}"
-                    .format(threading.current_thread()))
-                _logger.info("exiting to __main__")
-                _thread.interrupt_main()
-                exit_call.clear()
-                i_o_sem.release()
-                sys.exit()
-            else:
-                exit_call.clear()
-                i_o_sem.release()
-                raise KeyboardInterrupt
-        i_o_sem.release()
+    _logger.warning("error code {}". format(err))
+    carry_on = input(
+        "There has been an error in {!r}, press q to quit or any other"
+        " key to try and continue: ".format(cmd))
+
+    if carry_on.lower() == "q":
+        if threading.current_thread() != threading.main_thread():
+            _logger.debug(
+                "exiting thread - {!r}"
+                .format(threading.current_thread()))
+            _logger.info("exiting to __main__")
+            _thread.interrupt_main()
+            exit_call.clear()
+            i_o_sem.release()
+            sys.exit()
+        else:
+            exit_call.clear()
+            i_o_sem.release()
+            raise KeyboardInterrupt
+    i_o_sem.release()
 
 
 def run_command(prompt, cmd):
     # add inputs
     shell_setting = prompt
+    stderr = None
+    check_exit_get_sem()
     _logger.debug("running %s with prompt %s", cmd, shell_setting)
+    i_o_sem.release()
     if prompt:
         # Get prompt lock
         check_exit_get_sem()
         try:
             output = subprocess.run(cmd, errors=True)
             stderr = output.stderr or output.returncode
-            i_o_sem.release()
-        except FileNotFoundError:
+            i_o_sem.release() if not stderr else None
+        except (FileNotFoundError, subprocess.CalledProcessError):
+            # get sem here to go through into carry on q below
+            check_exit_get_sem()
             stderr = traceback.format_exc()
-            i_o_sem.release()
 
     else:
         try:
-            stdout, stderr = subprocess.check_ouptut(cmd)
-        except FileNotFoundError:
+            stdout = subprocess.check_output(
+                cmd, text=True, stderr=subprocess.STDOUT)
+        except (FileNotFoundError, subprocess.CalledProcessError):
+            # get sem here to go through into carry on q below
+            check_exit_get_sem()
             stderr = traceback.format_exc()
 
     if stderr:
-            carry_on_q(stderr, cmd)
+        # Need to get the IO sem where the exception happens to stop
+        # other output getting printed in between error and prompt
+        carry_on_q(stderr, cmd)
 
     elif not prompt:
         check_exit_get_sem()
-        print("{}".format(stdout))
+        print("call returned from: {}".format(cmd))
+        print("{}".format(stdout if stdout else "success"))
         i_o_sem.release()
 
 
 def process_command(task_name, task, running, executed, user):
     running.append(task_name)
+    i_o_sem.acquire()
     _logger.debug("Processing group {}".format(task_name))
+    i_o_sem.release()
     for x in task["scripts"]:
         run_command(
             x.get("prompt", True),
@@ -208,18 +220,6 @@ def app(conf_file, log_level, initial, user, verbose):
 
            for task in task_groups:
 
-               # If we're a pull repo task set up our pull script
-               # if it hasn't been setup yet
-               if ("script" not in task[1]
-                     and "pull-repos" in task[0].split(".")[0]):
-                   task[1]["scripts"] = [ dict( script=(
-                       ["git", "clone",
-                        task[1][task[0].split(".")[1]]["url"],
-                        str( Path(
-                            task[1][task[0].split(".")[1]]["local"]
-                        ).expanduser().absolute()
-                        )]))]
-
                task_pre_reqs = task[1]["pre-reqs"]
                if set(task_pre_reqs).issubset(executed_groups):
 
@@ -234,10 +234,8 @@ def app(conf_file, log_level, initial, user, verbose):
                i_o_sem.acquire()
                _logger.info("waiting on pre-reqs to finish")
                _logger.debug("running tasks: {}".format(running_tasks))
-               i_o_sem.release()
 
                if waits == 3:
-                   i_o_sem.acquire()
                    carry_on = input(
                        "It seems like pre-reqs have failed, do you want to quit?"
                        " q to quit, any other key to continue: ")
@@ -245,8 +243,8 @@ def app(conf_file, log_level, initial, user, verbose):
                        exit_call.clear()
                        i_o_sem.release()
                        raise KeyboardInterrupt
-                   i_o_sem.release()
                    waits = 0
+               i_o_sem.release()
 
                if not task_change.wait(timeout=10):
                    waits += 1
