@@ -20,6 +20,7 @@ Or the following
 ```bash
 sudo apt-get update && sudo apt-get install -y python3 python3-pip git \
 && git clone https://github.com/sierra-alpha/kaianga-conf.git \
-&& pip install -i https://test.pypi.org/simple/ kaianga \
+&& export PATH="$(python3 -m site --user-base)/bin:$PATH" \
+&& pip3 install -i https://test.pypi.org/simple/ kaianga \
 && kaianga -c ~/kaianga-conf/kaianga.conf -i -l debug -u shaun
 ```
