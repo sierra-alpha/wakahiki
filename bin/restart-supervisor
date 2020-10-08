@@ -1,6 +1,4 @@
 #!/bin/bash
 
-args="$@"
-
-supervisorctl "$args" shutdown || true
-supervisord "$args"
+supervisorctl "$@" shutdown || true
+supervisord "$@"
