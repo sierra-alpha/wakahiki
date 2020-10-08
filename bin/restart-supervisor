@@ -1,0 +1,8 @@
+#!/bin/bash
+
+local args
+
+args="$@"
+
+supervisorctl "$args" shutdown || true
+superviord "$args"
