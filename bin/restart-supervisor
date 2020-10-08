@@ -3,4 +3,4 @@
 args="$@"
 
 supervisorctl "$args" shutdown || true
-superviord "$args"
+supervisord "$args"
