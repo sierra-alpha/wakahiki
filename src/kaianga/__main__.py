@@ -94,7 +94,16 @@ def carry_on_q(err, cmd):
     i_o_sem.release()
 
 
-def run_command(prompt, cmd):
+def go_sudo():
+    print("Going sudo for {}".format(cmd))
+    check_exit_get_sem()
+    output = subprocess.run(["sudo", "echo entered sudo"], errors=True)
+    stderr = output.stderr or output.returncode
+    i_o_sem.release()
+    return output, stderr
+
+
+def run_command(sudo, prompt, cmd):
     # add inputs
     shell_setting = prompt
     stderr = None
@@ -115,6 +124,8 @@ def run_command(prompt, cmd):
 
     else:
         try:
+            if sudo:
+                output, stderr = go_sudo(cmd)
             stdout = subprocess.check_output(
                 cmd, text=True, stderr=subprocess.STDOUT)
         except (FileNotFoundError, subprocess.CalledProcessError):
@@ -141,6 +152,7 @@ def process_command(task_name, task, running, executed, user):
     i_o_sem.release()
     for x in task["scripts"]:
         run_command(
+            x.get("root", False),
             x.get("prompt", True),
             expand_tilda(x.get("script", ["echo", "'no script'"]), user)
         )
@@ -254,6 +266,7 @@ def app(conf_file, log_level, initial, user, verbose):
                    waits += 1
 
        _logger.debug("Collecting any still running threads")
+       _logger.debug("running tasks: {}".format(running_tasks))
        for t in thread_collect:
            t.join()
 
