@@ -27,7 +27,7 @@ sudo apt-get update && sudo apt-get install -y python3 python3-pip git \
 
 or in an .xinitrc
 ```bash
-xterm -e bash -c "sudo apt-get update \
+xterm -bg grey19 -fg grey70  -fa 'Source Code Pro' -fs 10 -maximize  -bc -e bash -c "sudo apt-get update \
 && sudo apt-get install -y python3 python3-pip git \
 && git clone https://github.com/sierra-alpha/kaianga-conf.git \
 || cd kaianga-conf && git pull \
