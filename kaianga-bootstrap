@@ -14,6 +14,7 @@ git clone https://github.com/sierra-alpha/kaianga-conf.git \
 export PATH=\"$(python3 -m site --user-base)/bin:$PATH\"
 pip3 install -U -i https://test.pypi.org/simple kaianga
 
+# Run Kaianga the multithreade script runner to setup our env
 kaianga -c ~/kaianga-conf/kaianga.conf -i -l debug -u shaun
 
 emacsclient -c -a emacs
