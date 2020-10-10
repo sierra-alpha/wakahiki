@@ -97,7 +97,7 @@ def carry_on_q(err, cmd):
 def go_sudo(cmd):
     print("Going sudo for {}".format(cmd))
     check_exit_get_sem()
-    output = subprocess.run(["sudo", "echo entered sudo"], errors=True)
+    output = subprocess.run(["sudo", "echo", "'entered sudo succesfully'"], errors=True)
     stderr = output.stderr or output.returncode
     i_o_sem.release()
     return output, stderr
