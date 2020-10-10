@@ -8,7 +8,7 @@ sudo apt-get update && sudo apt-get upgrade \
 # try a clone if it doesn't exist, if it does 
 dir_bak="$(pwd)"
 git clone https://github.com/sierra-alpha/kaianga-conf.git \
-    || cd kaianga-conf && git fetch && git pull && cd "$dir_bak"
+    || cd kaianga-conf && git pull && cd "$dir_bak"
 
 export PATH=\"$(python3 -m site --user-base)/bin:$PATH\"
 pip3 install -U -i https://test.pypi.org/simple kaianga
