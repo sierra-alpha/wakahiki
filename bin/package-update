@@ -4,4 +4,4 @@
 
 sudo apt-get -qq update
 sudo apt-get -qq upgrade
-sudo
+sudo apt-get -qq autoclean
