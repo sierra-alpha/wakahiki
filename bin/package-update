@@ -1,4 +1,6 @@
 #!/bin/bash
 
 export DEBIAN_FRONTEND=noninteractive
-sudo apt-get update
+sudo -E apt-get -qq -y update
+sudo -E apt-get -qq -y upgrade
+sudo -E apt-get -qq -y autoclean
