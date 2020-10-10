@@ -1,4 +1,7 @@
 #!/bin/bash
 
-sudo apt-get -y update
-sudo apt-get -y upgrade
+# Must be ran interactivley
+
+sudo apt-get -qq update
+sudo apt-get -qq upgrade
+sudo
