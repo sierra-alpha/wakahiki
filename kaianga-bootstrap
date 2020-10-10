@@ -17,5 +17,6 @@ pip3 install -U -i https://test.pypi.org/simple kaianga
 # Run Kaianga the multithreade script runner to setup our env
 kaianga -c ~/kaianga-conf/kaianga.conf -i -l debug -u shaun
 
+# Launch emacs, after all thats why where here right ;)
 emacsclient -c -a emacs
 
