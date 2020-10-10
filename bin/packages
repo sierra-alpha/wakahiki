@@ -2,5 +2,6 @@
 
 for package in "$@"
 do
+    export DEBIAN_FRONTEND=noninteractive
     sudo apt-get install -qq "$package"
 done
