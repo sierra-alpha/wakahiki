@@ -10,6 +10,7 @@ dir_bak="$(pwd)"
 git clone https://github.com/sierra-alpha/kaianga-conf.git \
     || cd kaianga-conf && git pull && cd "$dir_bak"
 
+# Need to add python stuff to the path, and install kaianga, (change to real pypi eventually)
 export PATH=\"$(python3 -m site --user-base)/bin:$PATH\"
 pip3 install -U -i https://test.pypi.org/simple kaianga
 
