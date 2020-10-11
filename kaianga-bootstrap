@@ -1,4 +1,6 @@
-#!/bin/bash
+#!/bin/bash -i
+set -e
+
 
 # update and install dependenices
 sudo apt-get update && sudo apt-get upgrade \
@@ -10,14 +12,14 @@ dir_bak="$(pwd)"
 git clone https://github.com/sierra-alpha/kaianga-conf.git \
     || cd kaianga-conf && git pull && cd "$dir_bak"
 
-# Need to add python stuff to the path, and install kaianga, (change to real pypi eventually)
-export PATH=\"$(python3 -m site --user-base)/bin:$PATH\"
-pip3 install -U -i https://test.pypi.org/simple kaianga
 
-# Run Kaianga the multithreade script runner to setup our env
-kaianga -c ~/kaianga-conf/kaianga.conf -i -l debug -u shaun
+# (change to real pypi eventually)
+# Need to add python stuff to the path, and install kaianga,
+# Run Kaianga the multithreaded script runner to setup our env
+pip3 install -U -i https://test.pypi.org/simple kaianga
+"$(python3 -m site --user-base)"/bin/kaianga -c ~/kaianga-conf/kaianga.conf -i -l debug -u shaun
+
 
 # our kaianga-conf starts emacs --daemon as part of its config
 # Launch emacs, after all thats why where here right ;)
-emacsclient -c -a emacs
-
+emacsclient -c -a ""
