@@ -21,5 +21,7 @@ pip3 install -U -i https://test.pypi.org/simple kaianga
 
 
 # our kaianga-conf starts emacs --daemon as part of its config
+# lets go back home first :) Probably should make kaianga do that
 # Launch emacs, after all thats why where here right ;)
+cd ~
 emacsclient -c -a ""
