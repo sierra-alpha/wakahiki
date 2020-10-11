@@ -72,7 +72,7 @@ def check_exit_get_sem():
 def carry_on_q(err, cmd):
     """Need to get IO sem before calling here"""
 
-    print("error code {}". format(err))
+    _logger.warning("error code {}". format(err))
     carry_on = input(
         "There has been an error in {!r}, press q to quit or any other"
         " key to try and continue: ".format(cmd))
@@ -95,8 +95,8 @@ def carry_on_q(err, cmd):
 
 
 def go_sudo(cmd):
-    check_exit_get_sem()
     print("Going sudo for {}".format(cmd))
+    check_exit_get_sem()
     output = subprocess.run(["sudo", "echo", "'entered sudo succesfully'"], errors=True)
     stderr = output.stderr or output.returncode
     i_o_sem.release()
@@ -147,8 +147,8 @@ def run_command(sudo, prompt, cmd):
 
 def process_command(task_name, task, running, executed, user):
     running.append(task_name)
-    check_exit_get_sem()
-    print("Processing group {}".format(task_name))
+    i_o_sem.acquire()
+    _logger.debug("Processing group {}".format(task_name))
     i_o_sem.release()
     for x in task["scripts"]:
         run_command(
@@ -225,10 +225,10 @@ def app(conf_file, log_level, initial, user, verbose):
        while task_groups:
            tasks_started = False
            i_o_sem.acquire()
-           print("to do tasks: {}".format(
+           _logger.debug("to do tasks: {}".format(
                [x[0]for x in task_groups]))
-           print("running tasks: {}".format(running_tasks))
-           print("executed tasks: {}" .format(executed_groups))
+           _logger.debug("running tasks: {}".format(running_tasks))
+           _logger.debug("executed tasks: {}" .format(executed_groups))
            i_o_sem.release()
 
            for task in task_groups:
@@ -248,8 +248,8 @@ def app(conf_file, log_level, initial, user, verbose):
            if not tasks_started:
                task_change.clear()
                i_o_sem.acquire()
-               print("waiting on pre-reqs to finish")
-               print("running tasks: {}".format(running_tasks))
+               _logger.info("waiting on pre-reqs to finish")
+               _logger.debug("running tasks: {}".format(running_tasks))
 
                if waits == 3:
                    carry_on = input(
@@ -277,8 +277,7 @@ def app(conf_file, log_level, initial, user, verbose):
         i_o_sem.release()
         raise KeyboardInterrupt
 
-    print("Kaianga completed successfully (doesn't mean all jobs were a success)")
+    _logger.info("Kaianga completed successfully (doesn't mean all jobs were a success)")
 
 if __name__ == "__main__":
     app()
-
