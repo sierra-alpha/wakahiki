@@ -1,25 +1,32 @@
-#!/bin/bash -i
-set -e
+#! /bin/bash
 
-
+echo Running Matapihi Start - installing packages
 # update and install dependenices
 sudo apt-get update && sudo apt-get upgrade \
     && sudo apt-get install -y python3 python3-pip git
 
 
+echo Running Matapihi Start - Cloning kaianga
 # try a clone if it doesn't exist, if it does go and pull that repo
-dir_bak="$(pwd)"
-git clone https://github.com/sierra-alpha/kaianga-conf.git \
+dir_bak=$(pwd)
+git clone https://github.com/sierra-alpha/kaianga-conf.git 2>/dev/null \
     || cd kaianga-conf && git pull && cd "$dir_bak"
 
-
+echo Running Matapihi Start - Pip install and run kaianga
 # (change to real pypi eventually)
 # Need to add python stuff to the path, and install kaianga,
 # Run Kaianga the multithreaded script runner to setup our env
 pip3 install -U -i https://test.pypi.org/simple kaianga
-"$(python3 -m site --user-base)"/bin/kaianga -c ~/kaianga-conf/kaianga.conf -i -l debug -u shaun >> kaianga.log 2&>1
+if "$(python3 -m site --user-base)"/bin/kaianga \
+	-c ~/kaianga-conf/kaianga.conf \
+	-i -l debug -u shaun; then
 
+    echo Running Matapihi Start - launching emacs
+    # our kaianga-conf starts emacs --daemon as part of its config
+    # Launch emacs, after all thats why where here right ;)
+    emacsclient -c -a ""
 
-# our kaianga-conf starts emacs --daemon as part of its config
-# Launch emacs, after all thats why where here right ;)
-emacsclient -c -a ""
+else
+   echo Exiting Matapihi Start - Kaianga not installed or failed to run
+fi
+
