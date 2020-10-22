@@ -5,7 +5,7 @@ from wakahiki.skeleton import fib
 
 __author__ = "Shaun Alexander"
 __copyright__ = "Shaun Alexander"
-__license__ = "mit"
+__license__ = "gpl3"
 
 
 def test_fib():
