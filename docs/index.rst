@@ -1,8 +1,8 @@
-=======
-kaianga
-=======
+========
+wakahiki
+========
 
-This is the documentation of **kaianga**.
+This is the documentation of **wakahiki**.
 
 .. note::
 

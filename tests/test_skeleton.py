@@ -1,11 +1,11 @@
 # -*- coding: utf-8 -*-
 
 import pytest
-from kaianga.skeleton import fib
+from wakahiki.skeleton import fib
 
 __author__ = "Shaun Alexander"
 __copyright__ = "Shaun Alexander"
-__license__ = "gpl3"
+__license__ = "mit"
 
 
 def test_fib():

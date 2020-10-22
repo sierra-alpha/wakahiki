@@ -5,7 +5,7 @@ console script. To run this script uncomment the following lines in the
 [options.entry_points] section in setup.cfg:
 
     console_scripts =
-         fibonacci = kaianga.skeleton:run
+         fibonacci = wakahiki.skeleton:run
 
 Then run `python setup.py install` which will install the command `fibonacci`
 inside your current environment.
@@ -28,7 +28,7 @@ import threading
 import toml
 import traceback
 
-from kaianga import __version__
+from wakahiki import __version__
 
 __author__ = "Shaun Alexander"
 __copyright__ = "Shaun Alexander"
@@ -37,15 +37,19 @@ __license__ = "gpl3"
 _logger = logging.getLogger(__name__)
 
 
-def setup_logging(loglevel):
+def setup_logging(loglevel, logfile):
     """Setup basic logging
 
     Args:
       loglevel (int): minimum loglevel for emitting messages
     """
     logformat = "[%(asctime)s] %(levelname)s:%(name)s:%(threadName)s:\n %(message)s"
-    logging.basicConfig(level=getattr(logging, loglevel.upper()), stream=sys.stdout,
-                        format=logformat, datefmt="%Y-%m-%d %H:%M:%S")
+    logging.basicConfig(
+        filename=logfile, level=getattr(logging, loglevel.upper()),
+        format=logformat, datefmt="%Y-%m-%d %H:%M:%S")
+    handler = logging.StreamHandler(sys.stdout)
+    handler.setLevel(getattr(logging, loglevel.upper()))
+    _logger.addHandler(handler)
 
 
 def expand_tilda(path, user):
@@ -168,36 +172,36 @@ def process_command(task_name, task, running, executed, user):
 
 @click.command()
 @click.option(
-    "-c", "--conf_file", default="~/.config/kaianga/kaianga.conf", show_default=True,
+    "-c", "--conf-file", default="wakahiki.conf", show_default=True,
     help="The location of your config file"
 )
 @click.option(
-    "-l", "--log_level", default="warning", show_default=True,
+    "-l", "--log-level", default="warning", show_default=True,
     help="The log levels to run at"
 )
 @click.option(
-    "-i", "--initial", is_flag=True, default=False,
-    help="The initial run will run the run_only_once part of the kaianga.conf"
+    "-o", "--output-file", default="wakahiki.log", show_default=True,
+    help="The location of your config file"
 )
 @click.option(
-    "-u", "--user", prompt="The user you want to set up as your kaianga",
-    help="The user you want to set up as your kaianga (home)"
+    "-u", "--user", prompt="The user you want wakahiki to expand any ~ too",
+    help="The user you want wakahiki to expand too (home)"
 )
 @click.option(
     "-v", "--verbose", is_flag=True, default=False,
     help="Set the output to verbose"
 )
-def app(conf_file, log_level, initial, user, verbose):
-    """Kaianga app, bootstraps and refreshes home on demand
+def app(conf_file, log_level, output_file, user, verbose):
+    """Wakahiki app, Is the crane that picks up and builds all your scripts
     """
 
     if verbose and log_level.upper() != "DEBUG":
         log_level = "info"
-    setup_logging(log_level)
+    setup_logging(log_level, output_file)
 
     conf_file = Path(conf_file).expanduser().absolute()
-    _logger.debug("reading config from {}, for user {}, {} mode:".format(
-        conf_file, user, "in initial" if initial else "not in initial"))
+    _logger.debug("reading config from {}, for user {}".format(
+        conf_file, user))
 
     os.chdir(str(conf_file.parent))
     _logger.debug("changed to directory %s", os.getcwd())
@@ -294,7 +298,7 @@ def app(conf_file, log_level, initial, user, verbose):
        i_o_sem.release()
        raise KeyboardInterrupt
 
-    _logger.info("Kaianga completed successfully (doesn't mean all jobs were a success)")
+    _logger.info("Wakahiki completed successfully (doesn't mean all jobs were a success)")
 
 if __name__ == "__main__":
     app()
