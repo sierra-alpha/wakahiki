@@ -2,7 +2,7 @@
 
 ## Description
 
-Wakahiki means (crane in Moari)[https://maoridictionary.co.nz/search?idiom=&phrase=&proverb=&loan=&histLoanWords=&keywords=Wakahiki] 
+Wakahiki means [crane in Moari](https://maoridictionary.co.nz/search?idiom=&phrase=&proverb=&loan=&histLoanWords=&keywords=Wakahiki) 
 and this wakahiki lifts up all your scripts specified in a 
 config file, (examples to come but for now check out 
 kaianga.conf in my kaianga repo) and executes them based on 
