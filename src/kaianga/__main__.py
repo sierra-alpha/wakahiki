@@ -265,17 +265,26 @@ def app(conf_file, log_level, initial, user, verbose):
                if not task_change.wait(timeout=10):
                    waits += 1
 
+       i_o_sem.acquire()
        _logger.debug("Collecting any still running threads")
        _logger.debug("running tasks: {}".format(running_tasks))
+       i_o_sem.release()
+
        for t in thread_collect:
-           t.join()
+           while t.is_alive():
+               t.join(10)
+               if t.is_alive():
+                   i_o_sem.acquire()
+                   _logger.debug("waiting on running tasks: {}".format(running_tasks))
+                   i_o_sem.release()
+
 
     except KeyboardInterrupt:
-        i_o_sem.acquire()
-        _logger.debug("in __main__ cleaning up other threads")
-        exit_call.clear()
-        i_o_sem.release()
-        raise KeyboardInterrupt
+       i_o_sem.acquire()
+       _logger.debug("in __main__ cleaning up other threads")
+       exit_call.clear()
+       i_o_sem.release()
+       raise KeyboardInterrupt
 
     _logger.info("Kaianga completed successfully (doesn't mean all jobs were a success)")
 
