@@ -103,7 +103,7 @@ def go_sudo(cmd):
     return output, stderr
 
 
-def run_command(sudo, prompt, cmd):
+def run_command(sudo, no_wait, prompt, cmd):
     # add inputs
     shell_setting = prompt
     stderr = None
@@ -126,8 +126,12 @@ def run_command(sudo, prompt, cmd):
         try:
             if sudo:
                 output, stderr = go_sudo(cmd)
-            stdout = subprocess.check_output(
+            stdout = (subprocess.check_output(
                 cmd, text=True, stderr=subprocess.STDOUT)
+                      if not no_wait else
+                      subprocess.check_call(
+                          cmd, text=True, stderr=subprocess.STDOUT)
+            )
         except (FileNotFoundError, subprocess.CalledProcessError):
             # get sem here to go through into carry on q below
             check_exit_get_sem()
@@ -153,6 +157,7 @@ def process_command(task_name, task, running, executed, user):
     for x in task["scripts"]:
         run_command(
             x.get("root", False),
+            x.get("no_wait", False),
             x.get("prompt", True),
             expand_tilda(x.get("script", ["echo", "'no script'"]), user)
         )
