@@ -233,7 +233,10 @@ def app(conf_file, log_level, initial, user, verbose):
            _logger.debug("to do tasks: {}".format(
                [x[0]for x in task_groups]))
            _logger.debug("running tasks: {}".format(running_tasks))
-           _logger.debug("executed tasks: {}" .format(executed_groups))
+           _logger.debug("executed tasks: {}" .format(
+               executed_groups if len(executed_groups) == 1
+               else [x for x in executed_groups if x])
+           )
            i_o_sem.release()
 
            for task in task_groups:
