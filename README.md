@@ -18,7 +18,7 @@ parrallel where possible.
 Only tested in linux (debian) probably only relevant there two,
 potentially useful for other unix based OSes (MacOS etc)
 
-Only tested in Python 3.8
+Only tested in Python 3.7
 
 ## Useage
 
