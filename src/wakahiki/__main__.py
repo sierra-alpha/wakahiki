@@ -43,6 +43,7 @@ def setup_logging(loglevel, logfile):
 
     Args:
       loglevel (int): minimum loglevel for emitting messages
+      logfile (filename): the location to save/append to the log file
     """
     logformat = "[%(asctime)s] %(levelname)s:%(name)s:%(threadName)s:\n %(message)s"
     logging.basicConfig(
@@ -53,17 +54,21 @@ def setup_logging(loglevel, logfile):
     _logger.addHandler(handler)
 
 
+# for expanding tildas supplied in the config file
 def expand_tilda(path, user):
     return [x.replace(r"~/", r"/home/{}/".format(user), 1)
             if x.startswith(r"~/") or r" ~/" in x
             else x for x in path]
 
 
+# Semaphores for keeping IO access for stdout and in in some kind of order
 i_o_sem = threading.Semaphore()
 task_change = threading.Event()
 exit_call = threading.Event()
 
 
+# Before grabbing the IO semaphore check if the exit event has been signalled (
+# usually due to an error in another thread or a user ctrl + c event) 
 def check_exit_get_sem():
     i_o_sem.acquire()
     if exit_call.is_set():
@@ -74,6 +79,8 @@ def check_exit_get_sem():
         sys.exit()
 
 
+# prompt the user if they want to carry on after we've detected an error in
+# one of the subprocess calls
 def carry_on_q(err, cmd):
     """Need to get IO sem before calling here"""
 
@@ -99,6 +106,8 @@ def carry_on_q(err, cmd):
     i_o_sem.release()
 
 
+# Go sudo here so that hopefully we only need to call it once before running
+# the scripts
 def go_sudo(cmd):
     print("Going sudo for {}".format(cmd))
     check_exit_get_sem()
@@ -108,6 +117,8 @@ def go_sudo(cmd):
     return output, stderr
 
 
+# Run the command based on whether it needs a prompt, needs to be waited on or not
+# Also error check the result and call the prompt to exit function 
 def run_command(sudo, no_wait, prompt, cmd):
     # add inputs
     shell_setting = prompt
@@ -154,6 +165,8 @@ def run_command(sudo, no_wait, prompt, cmd):
         i_o_sem.release()
 
 
+# For each of the subgroups add the defaults if not specified and set them to run
+# one after the other in the subgroups priority order
 def process_command(task_name, task, running, executed, user):
     running.append(task_name)
     i_o_sem.acquire()
@@ -168,9 +181,11 @@ def process_command(task_name, task, running, executed, user):
         )
     running.remove(task_name)
     executed.append(task_name)
+    # mark that we've changed tasks
     task_change.set()
 
 
+# Use click for the command line args
 @click.command()
 @click.option(
     "-c", "--conf-file", default="wakahiki.conf", show_default=True,
@@ -208,10 +223,8 @@ def app(conf_file, log_level, output_file, user, verbose):
     _logger.debug("changed to directory %s", os.getcwd())
     user_config = toml.load(conf_file)
 
-    # build default attributes
-
-    # ordered_config = prioritise(user_config)
-    # figure out order
+    # process config into chunks of subgroups scripts to run, make a special
+    # mention of their pre-reqs as we'll check this before they get sent to run
     task_groups = list( {
         "{}.{}".format(x,z):{
             z:y[z],
@@ -222,17 +235,20 @@ def app(conf_file, log_level, output_file, user, verbose):
         if z.lower() not in ["pre-reqs"]
     }.items() )
 
-    # sorted_tasks = sorted(list(task_groups.items()),
-    #                       key=lambda x: x[1]["priority"]
-    # )
+    # Set up some default lists for determining what can run next, and keeping
+    # track of whats running and how many times we've waited for a pre-req,
+    # incase it's failed after three times around
     executed_groups = [None]
     running_tasks = []
     waits = 0
     exit_call.set()
     thread_collect = []
 
+    # Try to catch keyboard interupts or q from any of the child threads
     try:
+       # While there is still tasks to process
        while task_groups:
+           # keep track if we started any new tasks on this iteration
            tasks_started = False
            i_o_sem.acquire()
            _logger.debug("to do tasks: {}".format(
@@ -244,37 +260,65 @@ def app(conf_file, log_level, output_file, user, verbose):
            )
            i_o_sem.release()
 
+           # Run through all the remaining tasks on the tasklist
            for task in task_groups:
 
+               # If all the prereqs already exist in the executed tasks
                task_pre_reqs = task[1]["pre-reqs"]
                if set(task_pre_reqs).issubset(executed_groups):
 
+                   # then switch to the config file directory
                    os.chdir(str(conf_file.parent))
+
+                   # configure a new thread for the task group
                    this_thread = threading.Thread(
                        target=process_command, name=task[0], args=(
                        *task, running_tasks, executed_groups, user))
+
+                   # Keep track of the running threads
                    thread_collect.append(this_thread)
+
+                   # Start the thread
                    this_thread.start()
+
+                   # remove the task from the tasklist
                    task_groups.remove(task)
+
+                   # note that tasks were started this iteration, so we're
+                   # likely not waiting on a failed parent task at this stage
                    tasks_started = True
 
+           # if we didn't launch any tasks then we need check how long we've
+           # been waiting
            if not tasks_started:
+               # clear the task change event
                task_change.clear()
                i_o_sem.acquire()
                _logger.info("waiting on pre-reqs to finish")
                _logger.debug("running tasks: {}".format(running_tasks))
 
+               # if we've waited three times already then ask the user if they
+               # want to continue
                if waits == 3:
                    carry_on = input(
                        "It seems like pre-reqs have failed, do you want to quit?"
                        " q to quit, any other key to continue: ")
                    if carry_on.lower() == "q":
+
+                       # if the users had enough then exit and signal all other
+                       # threads to stop when they next grab the IO semaphore 
                        exit_call.clear()
                        i_o_sem.release()
                        raise KeyboardInterrupt
+
+                   # the user wants to continue, set the waits back to 0 and
+                   # carry on
                    waits = 0
                i_o_sem.release()
 
+               # If it's not the third time then wait here for ten seconds or
+               # till a thread signals that it's finished, add one to the
+               # wait count and continue
                if not task_change.wait(timeout=10):
                    waits += 1
 
@@ -283,6 +327,8 @@ def app(conf_file, log_level, output_file, user, verbose):
        _logger.debug("running tasks: {}".format(running_tasks))
        i_o_sem.release()
 
+       # Go through and collect all the threads, if any are still running then
+       # wait 10 secs before logging which ones we're waiting on and trying again
        for t in thread_collect:
            while t.is_alive():
                t.join(10)
@@ -292,6 +338,7 @@ def app(conf_file, log_level, output_file, user, verbose):
                    i_o_sem.release()
 
 
+    # If the users prompts to quit or ctrl + c's we'll end up here
     except KeyboardInterrupt:
        i_o_sem.acquire()
        _logger.debug("in __main__ cleaning up other threads")
