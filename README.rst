@@ -10,7 +10,7 @@ multiple threads where possible.
 Description
 ===========
 
-Further documentation to follow, especially an example for the config
+See the linked git hub repo for documentation, especially an example for the config
 file required. You can group similar tasks that need to be in order
 whilst having these tasks be part of a larger priority list that is
 then used to determine the processing order. Scripts needing output and
