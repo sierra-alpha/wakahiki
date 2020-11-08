@@ -16,7 +16,7 @@
 
 ## Description
 
-Wakahiki means [crane in Moari](https://maoridictionary.co.nz/search?idiom=&phrase=&proverb=&loan=&histLoanWords=&keywords=Wakahiki) 
+Wakahiki means [crane in Maori](https://maoridictionary.co.nz/search?idiom=&phrase=&proverb=&loan=&histLoanWords=&keywords=Wakahiki) 
 and this wakahiki lifts up all your scripts specified in a 
 config file, and executes them based on the priority order specified in the
 config file, it allows for sub tasks to be grouped together to execute inline if 
