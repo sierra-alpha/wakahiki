@@ -2,7 +2,7 @@
 wakahiki
 ========
 
-Wakahiki means crane in Moari, and that's just what this package does,
+Wakahiki means crane in Maori, and that's just what this package does,
 it lifts up all your scritps and runs them in priority order on
 multiple threads where possible.
 
